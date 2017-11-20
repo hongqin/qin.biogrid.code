@@ -1,0 +1,1 @@
+../1analye_biogrid.Rmd
