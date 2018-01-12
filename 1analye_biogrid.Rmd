@@ -1,1 +1,100 @@
-../1analye_biogrid.Rmd
+---
+title: "BIOGRID yeast PPI analysis"
+author: "H Qin"
+date: "11/16-27/2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup}
+rm(list=ls());
+datapath = "~/data/biogrid/";
+list.files(path=datapath, pattern = "csv")
+debug = 1; 
+```
+
+```{r load data}
+#tb = read.csv(paste(datapath, "yeast-biogrid-smalltest.csv", sep=''))
+tb = read.csv(paste(datapath, "yeast-biogrid.csv", sep=''))
+tb$Systematic.Name.Interactor.A = as.character(  tb$Systematic.Name.Interactor.A )
+tb$Systematic.Name.Interactor.B = as.character(  tb$Systematic.Name.Interactor.B )
+```
+
+```{r ppi}
+tb.ppi = tb[ tb$Experimental.System.Type =='physical', ] #142657 rows
+tb.ppi = tb.ppi[ !is.na(tb.ppi$Systematic.Name.Interactor.A), ]#141962 rows
+tb.ppi = tb.ppi[ !is.na(tb.ppi$Systematic.Name.Interactor.B), ]#141640 rows
+#tb.ppi$Synonyms.Interactor.A = as.character(  tb.ppi$Synonyms.Interactor.A )
+#tb.ppi$Synonyms.Interactor.B = as.character(  tb.ppi$Synonyms.Interactor.B )
+str(tb.ppi)
+
+if( debug == 0) { rm(tb); }
+```
+
+```{r loop}
+total = length(tb.ppi[,1]);
+tb.ppi$ordered_pairs = NA; 
+for (i in 1:total ) {
+ if( (round(i/1000)*1000 - i)==0 ) { print(paste(i, "::", total - i) ); }  
+ pairs = tb.ppi[i , c("Systematic.Name.Interactor.A", "Systematic.Name.Interactor.B")];
+ if ( is.na(pairs[1,1]) ) {
+  tb.ppi$ordered_pairs[i] = "NA_found"; 
+ } else {
+  ordered_pairs = sort(pairs)
+  tb.ppi$ordered_pairs[i] =  paste( ordered_pairs[1,1], ordered_pairs[1,2], sep="_");
+ }
+}
+str(tb.ppi)
+```
+
+
+How many unique biogrid PPI? 
+```{r unique pairs}
+unique.ordered_pairs = unique(tb.ppi$ordered_pairs); 
+length(unique.ordered_pairs)
+length( unique(tb.ppi$ordered_pairs) ) / length(tb.ppi$ordered_pairs)
+```
+
+```{r tb.ppi.unique }
+tb.ppi.unique = tb.ppi[ match(unique.ordered_pairs, tb.ppi$ordered_pairs),  ];
+tb.ppi.unique = tb.ppi.unique[ !is.na(tb.ppi.unique[,1]), ]
+length(tb.ppi.unique[,1])
+```
+
+Identify essential and nonessential genes 
+```{r load fitness}
+tb.fit = read.csv( "fitness.data/SummaryRegressionHetHom20171122.csv", colClasses=rep("character",9) );
+```
+
+
+
+#How many interactions per essential genes? 
+First find out interaxctions per gene, then pick the essential genes
+
+```{r degree}
+degree = table( c( tb.ppi.unique$Systematic.Name.Interactor.A, tb.ppi.unique$Systematic.Name.Interactor.B) ); 
+net = data.frame(degree);
+names(net) = c("orf", "degree");
+net$orf = as.character(net$orf);
+```
+
+How many gene interaction per (non)essential gene? 
+```{r net-essential}
+net$essentiality = tb.fit$essentiality[ match(net$orf, tb.fit$orf) ];
+net.nonessential = net[net$essentiality=='nonessential' & (! is.na(net$orf)), ];
+net.essential = net[ net$essentiality == 'essential' & (! is.na(net$orf)),  ];
+summary(net.nonessential)
+summary(net.essential);
+```
+
+Add essentiality to unique PPI and output them
+```{r}
+tb.ppi.unique$essentialityA = tb.fit$essentiality[ match(tb.ppi.unique$Systematic.Name.Interactor.A, tb.fit$orf)];
+
+tb.ppi.unique$essentialityB = tb.fit$essentiality[ match(tb.ppi.unique$Systematic.Name.Interactor.B, tb.fit$orf)];
+ 
+write.csv(tb.ppi.unique, "unique_biogrid_ScePPI.csv", row.names = FALSE);
+```
+
