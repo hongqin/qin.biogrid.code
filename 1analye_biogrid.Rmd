@@ -65,7 +65,7 @@ length(tb.ppi.unique[,1])
 
 Identify essential and nonessential genes 
 ```{r load fitness}
-tb.fit = read.csv( "fitness.data/SummaryRegressionHetHom20171122.csv", colClasses=rep("character",9) );
+tb.fit = read.csv( "../fitness.data/SummaryRegressionHetHom20171122.csv", colClasses=rep("character",9) );
 ```
 
 
